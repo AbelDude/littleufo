@@ -261,8 +261,8 @@
         }
       }
 
-      function drawHelicopterSprite(heli, y = heli.drawY, direction = 0) {
-        ctx.save(); ctx.translate(heli.x, y); ctx.rotate(direction); ctx.scale(-1, 1);
+      function drawHelicopterSprite(heli, y = heli.drawY, faceRight = false) {
+        ctx.save(); ctx.translate(heli.x, y); ctx.scale(faceRight ? 1 : -1, 1);
         ctx.strokeStyle = '#27333a'; ctx.lineWidth = 3; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(-21, 1); ctx.lineTo(-39, -3); ctx.lineTo(-43, -8); ctx.moveTo(-38, -3); ctx.lineTo(-38, 3);
         ctx.moveTo(-12, 11); ctx.lineTo(-12, 15); ctx.lineTo(13, 15); ctx.lineTo(18, 11);
@@ -372,15 +372,15 @@
         const shipX = w * .5;
         const shipMenuY = h * .46 + Math.sin(menuElapsed * 1.15) * 17 + Math.sin(menuElapsed * .53) * 6;
         if (menuElapsed >= nextMenuHelicopter) {
-          const angle = Math.random() * Math.PI * 2;
-          const radius = Math.max(180, Math.min(w, h) * .62);
+          const fromLeft = Math.random() < .5;
+          const spawnY = h * (.2 + Math.random() * .48);
           helicopters.push({
-            x: shipX + Math.cos(angle) * radius,
-            y: shipMenuY + Math.sin(angle) * radius,
+            x: fromLeft ? -50 : w + 50,
+            y: spawnY,
             phase: Math.random() * Math.PI * 2,
             speed: 115 + Math.random() * 115
           });
-          nextMenuHelicopter = menuElapsed + .48 + Math.random() * .55;
+          nextMenuHelicopter = menuElapsed + .25 + Math.random() * .35;
         }
 
         for (const heli of helicopters) {
@@ -420,8 +420,7 @@
 
         drawExplosions(dt);
         for (const heli of helicopters) {
-          const towardShip = Math.atan2(shipMenuY - heli.drawY, shipX - heli.x);
-          drawHelicopterSprite(heli, heli.drawY, towardShip - Math.PI);
+          drawHelicopterSprite(heli, heli.drawY, heli.x < shipX);
         }
         drawDebris(dt);
         drawShip(shipX, shipMenuY);
