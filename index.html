@@ -91,7 +91,7 @@
       const helicopters = [];
       let nextHelicopter = 2;
       let nextWallTime = 60 + Math.random() * 60;
-      let wallSpawned = false;
+      let wallSpawned = false, wallSpawnTime = null, wormholeSpawned = false, wormhole = null;
       const explosions = [];
       const debris = [];
       const gameOver = document.querySelector('#game-over');
@@ -112,6 +112,7 @@
         score = 0; survivalTime = 0; addScore(0);
         rocks.length = 0; helicopters.length = 0; explosions.length = 0; debris.length = 0;
         nextRock = .4; nextHelicopter = 1.5; nextWallTime = 60 + Math.random() * 60; wallSpawned = false;
+        wallSpawnTime = null; wormholeSpawned = false; wormhole = null;
         gameOver.hidden = true;
         keys.clear();
       }
@@ -125,6 +126,10 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         groundY = h * 0.76;
         if (!shipY) shipY = h * 0.49;
+        if (wormhole) {
+          wormhole.x = Math.max(wormhole.rx, Math.min(w - wormhole.rx, wormhole.x));
+          wormhole.y = wormhole.zone === 'ground' ? groundY - 12 : wormhole.ry + 8;
+        }
       }
       window.addEventListener('resize', resize);
       resize();
@@ -334,13 +339,16 @@
           const availableCount = Math.max(1, Math.floor((lastAllowedY - firstY) / spacing) + 1);
           const neededCount = Math.max(1, Math.ceil((lastPlayerY - 29 - firstY) / spacing) + 1);
           const columnCount = Math.min(availableCount, Math.max(15, neededCount));
+          const shipX = Math.max(82, Math.min(130, w * .12));
+          const minimumRunway = 155 * difficulty() * .8;
+          const columnX = Math.max(w + 50, shipX + 46 + minimumRunway);
           for (let row = 0; row < columnCount; row++) {
             helicopters.push({
-              x: w + 50, y: firstY + row * spacing, phase: 0,
+              x: columnX, y: firstY + row * spacing, phase: 0,
               speed: 155, trackRate: 0, column: true
             });
           }
-          wallSpawned = true;
+          wallSpawned = true; wallSpawnTime = elapsed;
         }
         const shipX = Math.max(82, Math.min(130, w * .12));
         for (const heli of helicopters) {
@@ -389,6 +397,66 @@
           }
           if (heli.x < -60) helicopters.splice(i, 1);
         }
+      }
+
+      function drawWormhole(dt) {
+        let spawnedNow = false;
+        if (!wormhole && wallSpawned && !wormholeSpawned && elapsed >= wallSpawnTime + .5) {
+          const wallHelicopter = helicopters.find(heli => heli.column);
+          wormholeSpawned = true;
+          if (wallHelicopter) {
+            const rx = 46.5, ry = 25.5;
+            const zone = Math.random() < .5 ? 'sky' : 'ground';
+            const x = wallHelicopter.x - (30 + Math.random() * 70);
+            wormhole = {
+              rx, ry, zone,
+              x: Math.max(rx, Math.min(w - rx, x)),
+              y: zone === 'ground' ? groundY - 12 : ry + 8
+            };
+            spawnedNow = true;
+          }
+        }
+        if (!wormhole) return;
+
+        const { rx, ry, zone } = wormhole;
+        if (!spawnedNow) wormhole.x -= 155 * difficulty() * dt;
+        if (wormhole.x - rx < 0) { wormhole = null; return; }
+        const { x, y } = wormhole;
+        const palette = zone === 'sky'
+          ? ['#536f78', '#91a6a3', '#d2aa76']
+          : ['#b88358', '#a46d4c', '#d4a16a'];
+
+        ctx.save();
+        ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.clip();
+        const wash = ctx.createRadialGradient(x - rx * .28, y - ry * .25, 2, x, y, rx);
+        wash.addColorStop(0, zone === 'sky' ? 'rgba(179, 184, 151, .24)' : 'rgba(235, 183, 117, .28)');
+        wash.addColorStop(.55, zone === 'sky' ? 'rgba(58, 91, 104, .16)' : 'rgba(125, 83, 62, .18)');
+        wash.addColorStop(1, 'rgba(20, 35, 43, .08)');
+        ctx.globalCompositeOperation = 'soft-light';
+        ctx.fillStyle = wash; ctx.fillRect(x - rx, y - ry, rx * 2, ry * 2);
+        ctx.globalCompositeOperation = 'source-over';
+
+        // Colored spiral bands bend the scene into a whirlpool without a solid outline.
+        for (let arm = 0; arm < 3; arm++) {
+          ctx.beginPath();
+          const turns = Math.PI * 5;
+          for (let t = 0; t <= turns; t += .08) {
+            const radius = 1 - t / turns;
+            const angle = t + elapsed * .9 + arm * Math.PI * 2 / 3;
+            const px = x + Math.cos(angle) * rx * radius;
+            const py = y + Math.sin(angle) * ry * radius;
+            if (t === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.globalAlpha = .27; ctx.strokeStyle = palette[arm]; ctx.lineWidth = 3.5; ctx.lineCap = 'round'; ctx.stroke();
+        }
+        for (let ring = 0; ring < 3; ring++) {
+          const wobble = elapsed * .6 + ring * 1.7;
+          ctx.beginPath();
+          ctx.ellipse(x + Math.sin(wobble) * 3, y + Math.cos(wobble) * 2,
+            rx * (.9 - ring * .2), ry * (.88 - ring * .18), Math.sin(wobble) * .12, 0, Math.PI * 2);
+          ctx.globalAlpha = .13; ctx.strokeStyle = palette[(ring + 1) % palette.length]; ctx.lineWidth = 2; ctx.stroke();
+        }
+        ctx.restore();
       }
 
       function drawMenuScene(dt) {
@@ -467,7 +535,7 @@
           if (keys.has('ArrowDown')) shipY += speed;
           shipY = Math.max(75, Math.min(groundY - 47, shipY));
         }
-        drawBackground(dt); drawGround(dt); drawHelicopters(dt); drawDebris(dt); drawShip();
+        drawBackground(dt); drawGround(dt); drawHelicopters(dt); drawWormhole(dt); drawDebris(dt); drawShip();
         requestAnimationFrame(frame);
       }
       requestAnimationFrame(frame);
