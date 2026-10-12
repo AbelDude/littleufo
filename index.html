@@ -229,7 +229,8 @@
           const piece = debris[i];
           piece.age += dt;
           if (!piece.grounded) {
-            piece.x += (piece.vx - 22) * dt;
+            const groundSpeed = 155 * difficulty();
+            piece.x += (piece.vx * .25 - groundSpeed * .26) * dt;
             piece.y += piece.vy * dt;
             piece.vy += piece.gravity * dt;
             piece.angle += piece.spin * dt;
