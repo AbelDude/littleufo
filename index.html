@@ -273,22 +273,24 @@
       }
 
       function drawJet(jet) {
-        ctx.save(); ctx.translate(jet.x, jet.y);
-        ctx.fillStyle = '#344c5b'; ctx.globalAlpha = .65;
+        ctx.save(); ctx.translate(jet.x, jet.y); ctx.rotate(jet.angle || 0);
+        ctx.fillStyle = '#172a32'; ctx.globalAlpha = .75;
         ctx.beginPath(); ctx.ellipse(0, 1, 20, 28, 0, 0, Math.PI * 2); ctx.fill();
         ctx.globalAlpha = 1;
         const body = ctx.createLinearGradient(-18, 0, 18, 0);
-        body.addColorStop(0, '#647b83'); body.addColorStop(.5, '#c2cec4'); body.addColorStop(1, '#617882');
-        ctx.fillStyle = body; ctx.strokeStyle = '#263943'; ctx.lineWidth = 2;
+        body.addColorStop(0, '#34433f'); body.addColorStop(.5, '#68736a'); body.addColorStop(1, '#34433f');
+        ctx.fillStyle = body; ctx.strokeStyle = '#1b2b30'; ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, 30); ctx.lineTo(5, 8); ctx.lineTo(28, -9); ctx.lineTo(26, -14);
         ctx.lineTo(7, -7); ctx.lineTo(6, -23); ctx.lineTo(0, -29);
         ctx.lineTo(-6, -23); ctx.lineTo(-7, -7); ctx.lineTo(-26, -14); ctx.lineTo(-28, -9);
         ctx.lineTo(-5, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#75a9b1'; ctx.strokeStyle = '#dce8db'; ctx.lineWidth = 1;
+        ctx.fillStyle = '#344e56'; ctx.strokeStyle = '#87958b'; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.ellipse(0, 4, 3.3, 10, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.strokeStyle = '#e8e4ce'; ctx.globalAlpha = .65; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.moveTo(-19, -10); ctx.lineTo(-6, -4); ctx.moveTo(19, -10); ctx.lineTo(6, -4); ctx.stroke();
+        ctx.strokeStyle = '#9b9c78'; ctx.globalAlpha = .55; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(-19, -10); ctx.lineTo(-7, -6); ctx.moveTo(19, -10); ctx.lineTo(7, -6); ctx.stroke();
+        ctx.strokeStyle = '#a2a18a'; ctx.globalAlpha = .7; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(-2, -17); ctx.lineTo(2, -17); ctx.stroke();
         ctx.restore();
       }
 
@@ -308,7 +310,9 @@
             jets.push({
               x: spawnX, y: spawnY,
               speed: 95 + Math.random() * 125,
-              trackRate: .42 + Math.random() * .68
+              trackRate: .42 + Math.random() * .68,
+              turnRate: 1.8 + Math.random() * 1.4,
+              angle: 0
             });
           }
           nextJet = oceanElapsed + Math.max(.32, (2.5 + Math.random() * 2.2) / level);
@@ -319,7 +323,11 @@
             jet.y += jet.speed * level * dt;
             if (jet.y >= h * .5) {
               const tracking = 1 - Math.exp(-jet.trackRate * level * 2 * dt);
-              jet.x += (oceanShipX - jet.x) * tracking;
+              const dx = oceanShipX - jet.x;
+              jet.x += dx * tracking;
+              const targetAngle = Math.atan2(-dx, Math.max(40, oceanShipY - jet.y));
+              let angleDifference = (targetAngle - jet.angle + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+              jet.angle += angleDifference * (1 - Math.exp(-jet.turnRate * dt));
             }
           }
         }
