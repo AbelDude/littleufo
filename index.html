@@ -90,6 +90,8 @@
       let nextRock = 0;
       const helicopters = [];
       let nextHelicopter = 2;
+      let nextWallTime = 60 + Math.random() * 60;
+      let wallSpawned = false;
       const explosions = [];
       const debris = [];
       const gameOver = document.querySelector('#game-over');
@@ -108,7 +110,8 @@
         ended = false;
         elapsed = 0; last = 0; shipY = h * .49;
         score = 0; survivalTime = 0; addScore(0);
-        rocks.length = 0; helicopters.length = 0; explosions.length = 0; debris.length = 0; nextRock = .4; nextHelicopter = 1.5;
+        rocks.length = 0; helicopters.length = 0; explosions.length = 0; debris.length = 0;
+        nextRock = .4; nextHelicopter = 1.5; nextWallTime = 60 + Math.random() * 60; wallSpawned = false;
         gameOver.hidden = true;
         keys.clear();
       }
@@ -323,11 +326,27 @@
           }
           nextHelicopter = elapsed + Math.max(.32, (2.5 + Math.random() * 2.2) / difficulty());
         }
+        if (!ended && !wallSpawned && elapsed >= nextWallTime) {
+          const spacing = 36;
+          const firstY = 65;
+          const lastAllowedY = groundY - 13;
+          const lastPlayerY = Math.max(75, groundY - 47);
+          const availableCount = Math.max(1, Math.floor((lastAllowedY - firstY) / spacing) + 1);
+          const neededCount = Math.max(1, Math.ceil((lastPlayerY - 29 - firstY) / spacing) + 1);
+          const columnCount = Math.min(availableCount, Math.max(15, neededCount));
+          for (let row = 0; row < columnCount; row++) {
+            helicopters.push({
+              x: w + 50, y: firstY + row * spacing, phase: 0,
+              speed: 155, trackRate: 0, column: true
+            });
+          }
+          wallSpawned = true;
+        }
         const shipX = Math.max(82, Math.min(130, w * .12));
         for (const heli of helicopters) {
           if (!ended) {
             heli.x -= heli.speed * difficulty() * dt;
-            if (heli.x <= w * .5) {
+            if (!heli.column && heli.x <= w * .5) {
               const tracking = 1 - Math.exp(-heli.trackRate * difficulty() * dt);
               heli.y += (shipY - heli.y) * tracking;
             }
@@ -340,10 +359,10 @@
         let crashEvents = 0;
         for (let i = 0; i < helicopters.length; i++) {
           const first = helicopters[i];
-          if (first.x > w * .5) continue;
+          if (first.column || first.x > w * .5) continue;
           for (let j = i + 1; j < helicopters.length; j++) {
             const second = helicopters[j];
-            if (second.x > w * .5) continue;
+            if (second.column || second.x > w * .5) continue;
             if (Math.abs(first.x - second.x) < 52 && Math.abs(first.drawY - second.drawY) < 34) {
               crashed.add(first); crashed.add(second);
               crashEvents++;
