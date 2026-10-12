@@ -204,7 +204,7 @@
 
       function drawOcean(dt) {
         oceanElapsed += dt;
-        oceanScroll += 90 * dt;
+        oceanScroll += 162 * dt;
         const water = ctx.createLinearGradient(0, 0, w * .18, h);
         water.addColorStop(0, '#173e55'); water.addColorStop(.48, '#24647a'); water.addColorStop(1, '#102f49');
         ctx.fillStyle = water; ctx.fillRect(0, 0, w, h);
