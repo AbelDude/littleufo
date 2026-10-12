@@ -206,12 +206,14 @@
         ctx.fillStyle = water; ctx.fillRect(0, 0, w, h);
 
         // Gentle diagonal wave bands travel toward the upper-right.
-        const spacing = 76;
+        const spacing = 94;
         const drift = oceanElapsed * 66;
-        const firstCrest = Math.floor((-h - drift) / spacing) * spacing + drift;
+        const firstLane = Math.floor((-h - drift) / spacing);
         ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         const waveColors = ['#398196', '#4a91a0', '#67a6ad', '#2e718b'];
-        for (let crest = firstCrest; crest < w + h; crest += spacing) {
+        const waveWidths = [6, 9, 5, 8];
+        for (let lane = firstLane; lane * spacing + drift < w + h; lane++) {
+          const crest = lane * spacing + drift;
           // For x - y = crest, keep only the segment inside the canvas.
           const startX = Math.max(0, crest);
           const endX = Math.min(w, crest + h);
@@ -233,8 +235,9 @@
           }
           const lastPoint = points[points.length - 1];
           ctx.lineTo(lastPoint[0], lastPoint[1]);
-          const shade = Math.abs(Math.floor(crest / spacing)) % waveColors.length;
-          ctx.strokeStyle = waveColors[shade]; ctx.globalAlpha = .3; ctx.lineWidth = 8; ctx.stroke();
+          const patternIndex = ((lane % waveColors.length) + waveColors.length) % waveColors.length;
+          ctx.strokeStyle = waveColors[patternIndex]; ctx.globalAlpha = .3;
+          ctx.lineWidth = waveWidths[patternIndex]; ctx.stroke();
         }
         ctx.globalAlpha = 1;
       }
