@@ -156,10 +156,10 @@
         const x = Math.max(82, Math.min(130, w * .12));
         const y = shipY;
         // Small warm engine trail
-        const flicker = 9 + Math.sin(elapsed * 23) * 3;
-        const flame = ctx.createLinearGradient(x - 34 - flicker, y, x - 18, y);
+        const flicker = 22 + Math.sin(elapsed * 23) * 6;
+        const flame = ctx.createLinearGradient(x - 24 - flicker, y, x - 18, y);
         flame.addColorStop(0, '#f18d55'); flame.addColorStop(1, '#ffd58a');
-        ctx.fillStyle = flame; ctx.beginPath(); ctx.moveTo(x - 24, y - 5); ctx.lineTo(x - 24 - flicker, y); ctx.lineTo(x - 24, y + 5); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = flame; ctx.beginPath(); ctx.moveTo(x - 24, y - 9); ctx.lineTo(x - 24 - flicker, y); ctx.lineTo(x - 24, y + 9); ctx.closePath(); ctx.fill();
         ctx.save(); ctx.translate(x, y); ctx.rotate(-.05);
         ctx.shadowColor = '#d6f4ed'; ctx.shadowBlur = 20;
         const body = ctx.createLinearGradient(0, -18, 0, 18);
