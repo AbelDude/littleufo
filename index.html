@@ -320,12 +320,15 @@
           ));
           if (overlapsJet) continue;
 
-          for (const position of positions) {
+          for (let i = 0; i < positions.length; i++) {
+            const position = positions[i];
             jets.push({
               x: position.x, y: position.y,
               speed: 95 + Math.random() * 125,
               trackRate: .42 + Math.random() * .68,
               turnRate: 1.8 + Math.random() * 1.4,
+              approachSide: i % 2 === 0 ? 1 : -1,
+              approachOffset: 76 + Math.random() * 12,
               angle: 0
             });
           }
@@ -345,7 +348,9 @@
             jet.y += jet.speed * level * dt;
             if (jet.y >= h * .5) {
               const tracking = 1 - Math.exp(-jet.trackRate * level * 2 * dt);
-              const dx = oceanShipX - jet.x;
+              const targetX = Math.max(40, Math.min(w - 40,
+                oceanShipX + jet.approachSide * jet.approachOffset));
+              const dx = targetX - jet.x;
               jet.x += dx * tracking;
               const targetAngle = Math.atan2(-dx, Math.max(40, oceanShipY - jet.y));
               let angleDifference = (targetAngle - jet.angle + Math.PI * 3) % (Math.PI * 2) - Math.PI;
