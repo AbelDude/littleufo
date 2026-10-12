@@ -228,9 +228,9 @@
         for (let i = debris.length - 1; i >= 0; i--) {
           const piece = debris[i];
           piece.age += dt;
+          const groundSpeed = 155 * difficulty();
           if (!piece.grounded) {
-            const groundSpeed = 155 * difficulty();
-            piece.x += (piece.vx * .25 - groundSpeed * .26) * dt;
+            piece.x += (piece.vx * .25 - groundSpeed * .5) * dt;
             piece.y += piece.vy * dt;
             piece.vy += piece.gravity * dt;
             piece.angle += piece.spin * dt;
@@ -240,9 +240,12 @@
             if (piece.y >= groundY - 4) {
               piece.y = groundY - 4; piece.vy = 0; piece.vx *= .35; piece.grounded = true;
             }
-          } else if (piece.kind === 'rotor') {
-            piece.angle += piece.spin * dt;
-            piece.spin = Math.sign(piece.spin) * Math.max(0, Math.abs(piece.spin) - 7 * dt);
+          } else {
+            piece.x -= groundSpeed * dt;
+            if (piece.kind === 'rotor') {
+              piece.angle += piece.spin * dt;
+              piece.spin = Math.sign(piece.spin) * Math.max(0, Math.abs(piece.spin) - 7 * dt);
+            }
           }
           if ((piece.kind === 'rotor' && piece.grounded && piece.spin === 0 && piece.age > 1.8) || piece.age > 4 || piece.x < -40 || piece.x > w + 40) {
             debris.splice(i, 1); continue;
