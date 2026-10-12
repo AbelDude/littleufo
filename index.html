@@ -428,15 +428,36 @@
 
         ctx.save();
         ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); ctx.clip();
-        const wash = ctx.createRadialGradient(x - rx * .28, y - ry * .25, 2, x, y, rx);
-        wash.addColorStop(0, zone === 'sky' ? 'rgba(179, 184, 151, .24)' : 'rgba(235, 183, 117, .28)');
-        wash.addColorStop(.55, zone === 'sky' ? 'rgba(58, 91, 104, .16)' : 'rgba(125, 83, 62, .18)');
-        wash.addColorStop(1, 'rgba(20, 35, 43, .08)');
-        ctx.globalCompositeOperation = 'soft-light';
-        ctx.fillStyle = wash; ctx.fillRect(x - rx, y - ry, rx * 2, ry * 2);
-        ctx.globalCompositeOperation = 'source-over';
+        // Copy and twist the existing scene pixels so the wormhole is opaque,
+        // while retaining the colors of the sky or ground underneath it.
+        const left = Math.max(0, Math.floor((x - rx) * dpr));
+        const top = Math.max(0, Math.floor((y - ry) * dpr));
+        const patchWidth = Math.min(canvas.width - left, Math.ceil(rx * 2 * dpr));
+        const patchHeight = Math.min(canvas.height - top, Math.ceil(ry * 2 * dpr));
+        const patch = ctx.getImageData(left, top, patchWidth, patchHeight);
+        const source = new Uint8ClampedArray(patch.data);
+        for (let py = 0; py < patchHeight; py++) {
+          for (let px = 0; px < patchWidth; px++) {
+            const nx = ((left + px + .5) / dpr - x) / rx;
+            const ny = ((top + py + .5) / dpr - y) / ry;
+            const radius = Math.hypot(nx, ny);
+            if (radius > 1) continue;
+            const angle = Math.atan2(ny, nx) + (1 - radius) * (2.2 + Math.sin(elapsed) * .15);
+            const sampleX = x + Math.cos(angle) * radius * rx;
+            const sampleY = y + Math.sin(angle) * radius * ry;
+            const sourceX = Math.max(0, Math.min(patchWidth - 1, Math.round(sampleX * dpr - left)));
+            const sourceY = Math.max(0, Math.min(patchHeight - 1, Math.round(sampleY * dpr - top)));
+            const targetIndex = (py * patchWidth + px) * 4;
+            const sourceIndex = (sourceY * patchWidth + sourceX) * 4;
+            patch.data[targetIndex] = source[sourceIndex];
+            patch.data[targetIndex + 1] = source[sourceIndex + 1];
+            patch.data[targetIndex + 2] = source[sourceIndex + 2];
+            patch.data[targetIndex + 3] = 255;
+          }
+        }
+        ctx.putImageData(patch, left, top);
 
-        // Colored spiral bands bend the scene into a whirlpool without a solid outline.
+        // Opaque-color spiral bands make the distortion read as a whirlpool.
         for (let arm = 0; arm < 3; arm++) {
           ctx.beginPath();
           const turns = Math.PI * 5;
@@ -447,14 +468,14 @@
             const py = y + Math.sin(angle) * ry * radius;
             if (t === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
           }
-          ctx.globalAlpha = .27; ctx.strokeStyle = palette[arm]; ctx.lineWidth = 3.5; ctx.lineCap = 'round'; ctx.stroke();
+          ctx.globalAlpha = .48; ctx.strokeStyle = palette[arm]; ctx.lineWidth = 3.5; ctx.lineCap = 'round'; ctx.stroke();
         }
         for (let ring = 0; ring < 3; ring++) {
           const wobble = elapsed * .6 + ring * 1.7;
           ctx.beginPath();
           ctx.ellipse(x + Math.sin(wobble) * 3, y + Math.cos(wobble) * 2,
             rx * (.9 - ring * .2), ry * (.88 - ring * .18), Math.sin(wobble) * .12, 0, Math.PI * 2);
-          ctx.globalAlpha = .13; ctx.strokeStyle = palette[(ring + 1) % palette.length]; ctx.lineWidth = 2; ctx.stroke();
+          ctx.globalAlpha = .28; ctx.strokeStyle = palette[(ring + 1) % palette.length]; ctx.lineWidth = 2; ctx.stroke();
         }
         ctx.restore();
       }
