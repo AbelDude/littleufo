@@ -205,67 +205,55 @@
         water.addColorStop(0, '#173e55'); water.addColorStop(.48, '#24647a'); water.addColorStop(1, '#102f49');
         ctx.fillStyle = water; ctx.fillRect(0, 0, w, h);
 
-        // Long diagonal crests travel toward the upper-right, with broken
-        // foam strokes that suggest small waves continually crashing.
-        const spacing = 112;
-        const drift = oceanElapsed * 82;
+        // Gentle diagonal wave bands travel toward the upper-right.
+        const spacing = 76;
+        const drift = oceanElapsed * 66;
         const firstCrest = Math.floor((-h - drift) / spacing) * spacing + drift;
         ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        const waveColors = ['#398196', '#4a91a0', '#67a6ad', '#2e718b'];
         for (let crest = firstCrest; crest < w + h; crest += spacing) {
           // For x - y = crest, keep only the segment inside the canvas.
-          // The previous bounds selected the off-screen segment above the water.
           const startX = Math.max(0, crest);
           const endX = Math.min(w, crest + h);
           if (endX <= startX) continue;
           const points = [];
-          for (let x = startX; x <= endX + 2; x += 18) {
+          const wavePhase = crest * .035 - oceanElapsed * 1.4;
+          for (let x = startX; x <= endX + 2; x += 12) {
             const along = x + (x - crest);
-            const ripple = Math.sin(along * .018 + crest * .08 - oceanElapsed * 1.25) * 3.5 +
-              Math.sin(along * .008 - oceanElapsed * .8) * 2;
+            const ripple = Math.sin(along * .012 + wavePhase) * 7 +
+              Math.sin(along * .005 - wavePhase * .7) * 3;
             points.push([x, x - crest + ripple]);
           }
           if (points.length < 2) continue;
           ctx.beginPath(); ctx.moveTo(points[0][0], points[0][1]);
           for (let i = 1; i < points.length; i++) {
             const prev = points[i - 1], point = points[i];
-            ctx.quadraticCurveTo(prev[0] + 9, prev[1] + 9, (prev[0] + point[0]) / 2, (prev[1] + point[1]) / 2);
+            ctx.quadraticCurveTo((prev[0] + point[0]) / 2, (prev[1] + point[1]) / 2,
+              (prev[0] + point[0]) / 2, (prev[1] + point[1]) / 2);
           }
           const lastPoint = points[points.length - 1];
           ctx.lineTo(lastPoint[0], lastPoint[1]);
-          ctx.strokeStyle = '#8bc4c1'; ctx.globalAlpha = .09; ctx.lineWidth = 30; ctx.stroke();
-          ctx.strokeStyle = '#b9d9cf'; ctx.globalAlpha = .11; ctx.lineWidth = 12; ctx.stroke();
+          const shade = Math.abs(Math.floor(crest / spacing)) % waveColors.length;
+          ctx.strokeStyle = waveColors[shade]; ctx.globalAlpha = .3; ctx.lineWidth = 8; ctx.stroke();
 
-          // Broken, soft foam blooms along the crests, swelling and fading
-          // instead of forming a continuous sharp line.
-          const tangentAngle = Math.PI / 4;
-          for (let along = -h; along < w + h; along += 92) {
-            const phase = oceanElapsed * 1.7 + crest * .027 + along * .018;
-            const build = .5 + .5 * Math.sin(phase);
-            if (build < .12) continue;
-            const alongJitter = Math.sin(crest * .09 + along * .037) * 18;
-            const s = along + alongJitter;
-            const ripple = Math.sin(s * .018 + crest * .08 - oceanElapsed * 1.25) * 3.5 +
-              Math.sin(s * .008 - oceanElapsed * .8) * 2;
+          // Sparse, small foam sprays appear and fade along a few crests.
+          for (let along = -h; along < w + h; along += 238) {
+            const seed = Math.sin(crest * .13 + along * .041);
+            if (seed < .32) continue;
+            const s = along + Math.sin(crest + along * .07) * 22;
+            const ripple = Math.sin(s * .012 + wavePhase) * 7 + Math.sin(s * .005 - wavePhase * .7) * 3;
             const cx = (s + crest) / 2;
             const cy = (s - crest) / 2 + ripple;
-            if (cx < -30 || cx > w + 30 || cy < -30 || cy > h + 30) continue;
-            const size = 12 + build * 15;
-            ctx.globalAlpha = .12 + build * .3;
-            ctx.fillStyle = '#d6e9dc';
-            ctx.beginPath(); ctx.ellipse(cx, cy, size * 1.7, size * .48, tangentAngle, 0, Math.PI * 2); ctx.fill();
-            ctx.globalAlpha = .18 + build * .38;
-            ctx.beginPath();
-            ctx.ellipse(cx - size * .45, cy + size * .34, size * .72, size * .4, tangentAngle, 0, Math.PI * 2);
-            ctx.ellipse(cx + size * .5, cy - size * .28, size * .84, size * .42, tangentAngle, 0, Math.PI * 2);
-            ctx.ellipse(cx + size * .08, cy + size * .52, size * .53, size * .31, tangentAngle, 0, Math.PI * 2);
-            ctx.fill();
-            // A few tiny bubbles break away as the patch dissipates.
-            ctx.globalAlpha = build * .38;
-            for (let bubble = 0; bubble < 3; bubble++) {
-              const offset = Math.sin(phase + bubble * 2.1) * size * 1.7;
-              const bx = cx + offset * .707 - size * .38;
-              const by = cy + offset * .707 + size * .38;
-              ctx.beginPath(); ctx.arc(bx, by, 1.2 + ((bubble + build) % 2), 0, Math.PI * 2); ctx.fill();
+            if (cx < -12 || cx > w + 12 || cy < -12 || cy > h + 12) continue;
+            const fade = .68 + .27 * (.5 + .5 * Math.sin(oceanElapsed * 2.2 + seed * 8));
+            ctx.strokeStyle = '#d4eee9'; ctx.globalAlpha = fade; ctx.lineWidth = 2;
+            for (let spray = 0; spray < 3; spray++) {
+              const offset = (spray - 1) * 5;
+              ctx.beginPath();
+              ctx.moveTo(cx + offset * .707 - 4, cy + offset * .707 + 4);
+              ctx.quadraticCurveTo(cx + offset * .707, cy + offset * .707 - 3,
+                cx + offset * .707 + 5, cy + offset * .707 - 5);
+              ctx.stroke();
             }
           }
         }
