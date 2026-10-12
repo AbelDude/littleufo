@@ -220,8 +220,8 @@
           const wavePhase = crest * .035 - oceanElapsed * 1.4;
           for (let x = startX; x <= endX + 2; x += 12) {
             const along = x + (x - crest);
-            const ripple = Math.sin(along * .012 + wavePhase) * 7 +
-              Math.sin(along * .005 - wavePhase * .7) * 3;
+            const ripple = Math.sin(along * .012 + wavePhase) * 12 +
+              Math.sin(along * .005 - wavePhase * .7) * 5;
             points.push([x, x - crest + ripple]);
           }
           if (points.length < 2) continue;
@@ -235,27 +235,6 @@
           ctx.lineTo(lastPoint[0], lastPoint[1]);
           const shade = Math.abs(Math.floor(crest / spacing)) % waveColors.length;
           ctx.strokeStyle = waveColors[shade]; ctx.globalAlpha = .3; ctx.lineWidth = 8; ctx.stroke();
-
-          // Sparse, small foam sprays appear and fade along a few crests.
-          for (let along = -h; along < w + h; along += 238) {
-            const seed = Math.sin(crest * .13 + along * .041);
-            if (seed < .32) continue;
-            const s = along + Math.sin(crest + along * .07) * 22;
-            const ripple = Math.sin(s * .012 + wavePhase) * 7 + Math.sin(s * .005 - wavePhase * .7) * 3;
-            const cx = (s + crest) / 2;
-            const cy = (s - crest) / 2 + ripple;
-            if (cx < -12 || cx > w + 12 || cy < -12 || cy > h + 12) continue;
-            const fade = .68 + .27 * (.5 + .5 * Math.sin(oceanElapsed * 2.2 + seed * 8));
-            ctx.strokeStyle = '#d4eee9'; ctx.globalAlpha = fade; ctx.lineWidth = 2;
-            for (let spray = 0; spray < 3; spray++) {
-              const offset = (spray - 1) * 5;
-              ctx.beginPath();
-              ctx.moveTo(cx + offset * .707 - 4, cy + offset * .707 + 4);
-              ctx.quadraticCurveTo(cx + offset * .707, cy + offset * .707 - 3,
-                cx + offset * .707 + 5, cy + offset * .707 - 5);
-              ctx.stroke();
-            }
-          }
         }
         ctx.globalAlpha = 1;
       }
