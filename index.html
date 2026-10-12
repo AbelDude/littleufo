@@ -22,12 +22,12 @@
     .menu-screen[hidden] { display: none; }
     .menu-card {
       position: absolute; left: 50%; bottom: clamp(14px, 3vh, 34px); transform: translateX(-50%);
-      width: clamp(150px, 23vh, 210px); aspect-ratio: 1; display: grid; place-items: center;
-      padding: 18px; border: 1px solid #f2d9a477; border-radius: 12px;
+      width: min(82vw, 900px); height: clamp(130px, 22vh, 190px); display: grid; place-items: center;
+      padding: 24px; border: 1px solid #f2d9a477; border-radius: 12px;
       background: #182a32e8; box-shadow: 0 16px 60px #09131999, inset 0 1px #fff2d222;
       backdrop-filter: blur(8px); pointer-events: auto;
     }
-    .menu-card button { width: 100%; padding: 13px 8px; white-space: nowrap; }
+    .menu-card button { width: min(240px, 100%); padding: 15px 12px; white-space: nowrap; }
     .hud {
       position: absolute; top: clamp(18px, 5vh, 48px); left: clamp(20px, 5vw, 64px);
       pointer-events: none; text-shadow: 0 2px 8px #10202b;
@@ -383,7 +383,7 @@
             x: fromLeft ? -50 : w + 50,
             y: spawnY,
             phase: Math.random() * Math.PI * 2,
-            speed: 115 + Math.random() * 115
+            speed: (115 + Math.random() * 115) * (fromLeft ? 1 : 1.5)
           });
           nextMenuHelicopter = menuElapsed + .25 + Math.random() * .35;
         }
