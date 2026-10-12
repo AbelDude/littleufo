@@ -229,7 +229,7 @@
           const piece = debris[i];
           piece.age += dt;
           if (!piece.grounded) {
-            piece.x += piece.vx * dt;
+            piece.x += (piece.vx - 22) * dt;
             piece.y += piece.vy * dt;
             piece.vy += piece.gravity * dt;
             piece.angle += piece.spin * dt;
