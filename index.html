@@ -294,27 +294,49 @@
         ctx.restore();
       }
 
-      function drawOceanJets(dt) {
-        const level = oceanDifficulty();
-        if (!ended && oceanElapsed >= nextJet) {
+      function spawnJetSquadron() {
+        const count = Math.random() < .5 ? 3 : 5;
+        const spacing = Math.min(76, Math.max(54, (w - 80) / (count - 1)));
+        const formation = count === 5
+          ? [
+              { x: 0, y: 0 },
+              { x: -spacing, y: -34 }, { x: spacing, y: -34 },
+              { x: -spacing * 2, y: -68 }, { x: spacing * 2, y: -68 }
+            ]
+          : [
+              { x: 0, y: 0 },
+              { x: -spacing, y: -42 }, { x: spacing, y: -42 }
+            ];
+        const halfWidth = spacing * (count - 1) / 2;
+        const minCenter = Math.min(w * .5, 40 + halfWidth);
+        const maxCenter = Math.max(w * .5, w - 40 - halfWidth);
+
+        for (let attempt = 0; attempt < 24; attempt++) {
+          const centerX = minCenter + Math.random() * (maxCenter - minCenter);
           const spawnY = -40;
-          let spawnX = null;
-          for (let attempt = 0; attempt < 24; attempt++) {
-            const candidateX = 40 + Math.random() * Math.max(1, w - 80);
-            const wouldTouch = jets.some(jet =>
-              Math.abs(jet.x - candidateX) < 54 && Math.abs(jet.y - spawnY) < 48
-            );
-            if (!wouldTouch) { spawnX = candidateX; break; }
-          }
-          if (spawnX !== null) {
+          const positions = formation.map(slot => ({ x: centerX + slot.x, y: spawnY + slot.y }));
+          const overlapsJet = positions.some(position => jets.some(jet =>
+            Math.abs(jet.x - position.x) < 54 && Math.abs(jet.y - position.y) < 48
+          ));
+          if (overlapsJet) continue;
+
+          for (const position of positions) {
             jets.push({
-              x: spawnX, y: spawnY,
+              x: position.x, y: position.y,
               speed: 95 + Math.random() * 125,
               trackRate: .42 + Math.random() * .68,
               turnRate: 1.8 + Math.random() * 1.4,
               angle: 0
             });
           }
+          return;
+        }
+      }
+
+      function drawOceanJets(dt) {
+        const level = oceanDifficulty();
+        if (!ended && oceanElapsed >= nextJet) {
+          spawnJetSquadron();
           nextJet = oceanElapsed + Math.max(.32, (2.5 + Math.random() * 2.2) / level);
         }
 
