@@ -17,7 +17,8 @@
     }
     main { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #172b3b; }
     canvas { display: block; width: 100%; height: 100%; }
-    .in-menu .hud, .in-menu .score, .in-menu .hint { display: none; }
+    .in-menu .hud, .in-menu .score, .in-menu .hint,
+    .in-ocean .hud, .in-ocean .score, .in-ocean .hint { display: none; }
     .menu-screen { position: absolute; inset: 0; pointer-events: none; }
     .menu-screen[hidden] { display: none; }
     .menu-card {
@@ -80,6 +81,7 @@
       const ctx = canvas.getContext('2d');
       let w = 0, h = 0, dpr = 1, groundY = 0, elapsed = 0, last = 0;
       let shipY = 0, ended = false, mode = 'menu', menuElapsed = 0, nextMenuHelicopter = 0, portalEntry = null;
+      let oceanElapsed = 0, oceanReveal = 1;
       let score = 0, survivalTime = 0;
       const keys = new Set();
       const stars = Array.from({ length: 70 }, (_, i) => ({
@@ -106,7 +108,7 @@
       }
 
       function restart() {
-        mode = 'game'; menuScreen.hidden = true; document.body.classList.remove('in-menu');
+        mode = 'game'; menuScreen.hidden = true; document.body.classList.remove('in-menu', 'in-ocean');
         ended = false; portalEntry = null;
         elapsed = 0; last = 0; shipY = h * .49;
         score = 0; survivalTime = 0; addScore(0);
@@ -119,7 +121,9 @@
 
       function returnToMenu() {
         mode = 'menu'; menuScreen.hidden = false; document.body.classList.add('in-menu');
+        document.body.classList.remove('in-ocean');
         ended = false; portalEntry = null;
+        oceanElapsed = 0; oceanReveal = 1;
         elapsed = 0; last = 0; menuElapsed = 0; nextMenuHelicopter = 0;
         shipY = h * .49; survivalTime = 0; score = 0; addScore(0);
         rocks.length = 0; helicopters.length = 0; explosions.length = 0; debris.length = 0;
@@ -172,6 +176,51 @@
           ctx.lineTo(x, y);
         }
         ctx.lineTo(w, groundY); ctx.closePath(); ctx.fill();
+      }
+
+      function drawOcean(dt) {
+        oceanElapsed += dt;
+        const water = ctx.createLinearGradient(0, 0, w * .18, h);
+        water.addColorStop(0, '#173e55'); water.addColorStop(.48, '#24647a'); water.addColorStop(1, '#102f49');
+        ctx.fillStyle = water; ctx.fillRect(0, 0, w, h);
+
+        // Long diagonal crests travel toward the upper-right, with broken
+        // foam strokes that suggest small waves continually crashing.
+        const spacing = 68;
+        const drift = oceanElapsed * 82;
+        const firstCrest = Math.floor((-h - drift) / spacing) * spacing + drift;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        for (let crest = firstCrest; crest < w + h; crest += spacing) {
+          const startX = Math.max(0, crest - h);
+          const endX = Math.min(w, crest);
+          if (endX <= startX) continue;
+          const points = [];
+          for (let x = startX; x <= endX + 2; x += 18) {
+            const along = x + (x - crest);
+            const ripple = Math.sin(along * .035 + crest * .08 - oceanElapsed * 2.1) * 5 +
+              Math.sin(along * .013 - oceanElapsed * 1.3) * 3;
+            points.push([x, x - crest + ripple]);
+          }
+          if (points.length < 2) continue;
+          ctx.beginPath(); ctx.moveTo(points[0][0], points[0][1]);
+          for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1], point = points[i];
+            ctx.quadraticCurveTo(prev[0] + 9, prev[1] + 9, (prev[0] + point[0]) / 2, (prev[1] + point[1]) / 2);
+          }
+          const lastPoint = points[points.length - 1];
+          ctx.lineTo(lastPoint[0], lastPoint[1]);
+          ctx.strokeStyle = '#8bc4c1'; ctx.globalAlpha = .13; ctx.lineWidth = 11; ctx.stroke();
+          ctx.strokeStyle = '#c4e5d6'; ctx.globalAlpha = .28; ctx.lineWidth = 2; ctx.stroke();
+
+          // Small broken highlights ride each crest like foam.
+          ctx.strokeStyle = '#e3f0d9'; ctx.globalAlpha = .46; ctx.lineWidth = 1.5;
+          for (let i = 0; i < points.length - 2; i += 4) {
+            if (Math.sin(crest * .13 + i * 2.7) < -.25) continue;
+            ctx.beginPath(); ctx.moveTo(points[i][0], points[i][1] - 1);
+            ctx.lineTo(points[i + 1][0] + 3, points[i + 1][1] - 2); ctx.stroke();
+          }
+        }
+        ctx.globalAlpha = 1;
       }
 
       function drawGround(dt) {
@@ -505,7 +554,7 @@
           : shipY < wormhole.y && keys.has('ArrowDown');
         if (enteringCorrectly) {
           portalEntry = {
-            age: 0, duration: .7,
+            age: 0, duration: 1.05,
             startX: shipX, startY: shipY,
             targetX: wormhole.x, targetY: wormhole.y
           };
@@ -579,6 +628,15 @@
       function frame(now) {
         const frameDt = Math.min((now - (last || now)) / 1000, .04); last = now;
         const dt = ended || portalEntry ? 0 : frameDt;
+        if (mode === 'ocean') {
+          drawOcean(frameDt);
+          oceanReveal = Math.min(1, oceanReveal + frameDt / .9);
+          if (oceanReveal < 1) {
+            ctx.fillStyle = '#fff'; ctx.globalAlpha = 1 - oceanReveal; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
+          }
+          requestAnimationFrame(frame);
+          return;
+        }
         if (mode === 'menu') {
           menuElapsed += frameDt; elapsed += frameDt;
           drawMenuScene(frameDt);
@@ -597,13 +655,20 @@
         drawBackground(dt); drawGround(dt); drawHelicopters(dt); drawDebris(dt);
         if (portalEntry) {
           portalEntry.age += frameDt;
-          const progress = Math.min(1, portalEntry.age / portalEntry.duration);
-          const eased = 1 - Math.pow(1 - progress, 3);
+          const shipProgress = Math.min(1, portalEntry.age / .7);
+          const eased = 1 - Math.pow(1 - shipProgress, 3);
           const x = portalEntry.startX + (portalEntry.targetX - portalEntry.startX) * eased;
           const y = portalEntry.startY + (portalEntry.targetY - portalEntry.startY) * eased;
-          drawShip(x, y, Math.max(.015, 1 - eased), 1 - eased);
+          if (shipProgress < 1) drawShip(x, y, Math.max(.015, 1 - eased), 1 - eased);
           drawWormhole(0);
-          if (progress >= 1) returnToMenu();
+          const whiteFade = Math.min(1, Math.max(0, (portalEntry.age - .42) / .63));
+          if (whiteFade > 0) {
+            ctx.fillStyle = '#fff'; ctx.globalAlpha = whiteFade; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
+          }
+          if (portalEntry.age >= portalEntry.duration) {
+            mode = 'ocean'; portalEntry = null; oceanElapsed = 0; oceanReveal = 0;
+            document.body.classList.add('in-ocean');
+          }
         } else {
           drawShip();
           drawWormhole(dt);
