@@ -79,7 +79,7 @@
       const canvas = document.querySelector('#game');
       const ctx = canvas.getContext('2d');
       let w = 0, h = 0, dpr = 1, groundY = 0, elapsed = 0, last = 0;
-      let shipY = 0, ended = false, mode = 'menu', menuElapsed = 0, nextMenuHelicopter = 0;
+      let shipY = 0, ended = false, mode = 'menu', menuElapsed = 0, nextMenuHelicopter = 0, portalEntry = null;
       let score = 0, survivalTime = 0;
       const keys = new Set();
       const stars = Array.from({ length: 70 }, (_, i) => ({
@@ -107,7 +107,7 @@
 
       function restart() {
         mode = 'game'; menuScreen.hidden = true; document.body.classList.remove('in-menu');
-        ended = false;
+        ended = false; portalEntry = null;
         elapsed = 0; last = 0; shipY = h * .49;
         score = 0; survivalTime = 0; addScore(0);
         rocks.length = 0; helicopters.length = 0; explosions.length = 0; debris.length = 0;
@@ -115,6 +115,17 @@
         wallSpawnTime = null; wormholeSpawned = false; wormhole = null;
         gameOver.hidden = true;
         keys.clear();
+      }
+
+      function returnToMenu() {
+        mode = 'menu'; menuScreen.hidden = false; document.body.classList.add('in-menu');
+        ended = false; portalEntry = null;
+        elapsed = 0; last = 0; menuElapsed = 0; nextMenuHelicopter = 0;
+        shipY = h * .49; survivalTime = 0; score = 0; addScore(0);
+        rocks.length = 0; helicopters.length = 0; explosions.length = 0; debris.length = 0;
+        nextRock = 0; nextHelicopter = 2; nextWallTime = 60 + Math.random() * 60;
+        wallSpawned = false; wallSpawnTime = null; wormholeSpawned = false; wormhole = null;
+        gameOver.hidden = true; keys.clear();
       }
       document.querySelector('#restart').addEventListener('click', restart);
       document.querySelector('#start-game').addEventListener('click', restart);
@@ -194,9 +205,10 @@
         }
       }
 
-      function drawShip(xOverride, yOverride) {
+      function drawShip(xOverride, yOverride, scale = 1, alpha = 1) {
         const x = xOverride ?? Math.max(82, Math.min(130, w * .12));
         const y = yOverride ?? shipY;
+        ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale); ctx.translate(-x, -y); ctx.globalAlpha = alpha;
         // Small warm engine trail
         const flicker = 22 + Math.sin(elapsed * 23) * 6;
         const flame = ctx.createLinearGradient(x - 24 - flicker, y, x - 18, y);
@@ -212,6 +224,7 @@
         ctx.fillStyle = '#76aab0'; ctx.beginPath(); ctx.ellipse(8, -2, 10, 7, -.15, Math.PI, Math.PI * 2); ctx.fill();
         ctx.globalAlpha = .7; ctx.strokeStyle = '#fff8df'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.ellipse(0, 0, 25, 12, 0, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+        ctx.restore();
         ctx.restore();
       }
 
@@ -392,7 +405,7 @@
           const heli = helicopters[i];
           const y = heli.drawY;
           drawHelicopterSprite(heli, y);
-          if (!ended && Math.abs(heli.x - shipX) < 46 && Math.abs(y - shipY) < 29) {
+          if (!ended && !portalEntry && Math.abs(heli.x - shipX) < 46 && Math.abs(y - shipY) < 29) {
             ended = true; gameOver.hidden = false; keys.clear();
           }
           if (heli.x < -60) helicopters.splice(i, 1);
@@ -480,6 +493,30 @@
         ctx.restore();
       }
 
+      function checkWormholeCollision() {
+        if (!wormhole || wormhole.passedShip || ended || portalEntry) return;
+        const shipX = Math.max(82, Math.min(130, w * .12));
+        const overlaps = Math.abs(wormhole.x - shipX) < wormhole.rx + 31 &&
+          Math.abs(wormhole.y - shipY) < wormhole.ry + 17;
+        if (!overlaps) return;
+
+        const enteringCorrectly = wormhole.zone === 'sky'
+          ? shipY > wormhole.y && keys.has('ArrowUp')
+          : shipY < wormhole.y && keys.has('ArrowDown');
+        if (enteringCorrectly) {
+          portalEntry = {
+            age: 0, duration: .7,
+            startX: shipX, startY: shipY,
+            targetX: wormhole.x, targetY: wormhole.y
+          };
+          keys.clear();
+        } else {
+          // A side or wrong-direction hit passes through the portal and leaves
+          // the helicopter wall ahead as the next obstacle.
+          wormhole.passedShip = true;
+        }
+      }
+
       function drawMenuScene(dt) {
         drawBackground(dt); drawGround(dt);
         const shipX = w * .5;
@@ -540,15 +577,16 @@
       }
 
       function frame(now) {
-        const dt = ended ? 0 : Math.min((now - (last || now)) / 1000, .04); last = now;
+        const frameDt = Math.min((now - (last || now)) / 1000, .04); last = now;
+        const dt = ended || portalEntry ? 0 : frameDt;
         if (mode === 'menu') {
-          menuElapsed += dt; elapsed += dt;
-          drawMenuScene(dt);
+          menuElapsed += frameDt; elapsed += frameDt;
+          drawMenuScene(frameDt);
           requestAnimationFrame(frame);
           return;
         }
         elapsed += dt;
-        if (!ended) {
+        if (!ended && !portalEntry) {
           survivalTime += dt;
           while (survivalTime >= 2) { survivalTime -= 2; addScore(1); }
           const speed = 255 * difficulty() * dt;
@@ -556,7 +594,21 @@
           if (keys.has('ArrowDown')) shipY += speed;
           shipY = Math.max(75, Math.min(groundY - 47, shipY));
         }
-        drawBackground(dt); drawGround(dt); drawHelicopters(dt); drawWormhole(dt); drawDebris(dt); drawShip();
+        drawBackground(dt); drawGround(dt); drawHelicopters(dt); drawDebris(dt);
+        if (portalEntry) {
+          portalEntry.age += frameDt;
+          const progress = Math.min(1, portalEntry.age / portalEntry.duration);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          const x = portalEntry.startX + (portalEntry.targetX - portalEntry.startX) * eased;
+          const y = portalEntry.startY + (portalEntry.targetY - portalEntry.startY) * eased;
+          drawShip(x, y, Math.max(.015, 1 - eased), 1 - eased);
+          drawWormhole(0);
+          if (progress >= 1) returnToMenu();
+        } else {
+          drawShip();
+          drawWormhole(dt);
+          checkWormholeCollision();
+        }
         requestAnimationFrame(frame);
       }
       requestAnimationFrame(frame);
