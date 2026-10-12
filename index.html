@@ -191,8 +191,10 @@
         const firstCrest = Math.floor((-h - drift) / spacing) * spacing + drift;
         ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         for (let crest = firstCrest; crest < w + h; crest += spacing) {
-          const startX = Math.max(0, crest - h);
-          const endX = Math.min(w, crest);
+          // For x - y = crest, keep only the segment inside the canvas.
+          // The previous bounds selected the off-screen segment above the water.
+          const startX = Math.max(0, crest);
+          const endX = Math.min(w, crest + h);
           if (endX <= startX) continue;
           const points = [];
           for (let x = startX; x <= endX + 2; x += 18) {
