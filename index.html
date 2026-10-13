@@ -114,6 +114,9 @@
       function keepMusicPlaying() {
         if (backgroundMusic.paused) backgroundMusic.play().catch(() => {});
       }
+      backgroundMusic.addEventListener('canplay', keepMusicPlaying, { once: true });
+      document.addEventListener('pointerdown', keepMusicPlaying, { once: true });
+      document.addEventListener('keydown', keepMusicPlaying, { once: true });
       const difficulty = () => 1.5 + elapsed * .025;
       const oceanDifficulty = () => 1.5 + oceanElapsed * .025;
       function oceanViewport() {
