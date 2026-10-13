@@ -64,6 +64,7 @@
 </head>
 <body>
   <main aria-label="Spaceship game">
+    <audio id="background-music" src="assets/2d-beat-v2-1.m4a" autoplay loop preload="auto" aria-hidden="true"></audio>
     <canvas id="game" aria-label="Use the up and down arrow keys to fly the spaceship"></canvas>
     <div class="score" id="score" aria-live="polite">SCORE 00000</div>
     <div class="hint"><span>Fly</span><span class="keys"><span class="key">↑</span><span class="key">↓</span></span></div>
@@ -106,6 +107,10 @@
       const gameOverMessage = document.querySelector('#game-over-message');
       const scoreDisplay = document.querySelector('#score');
       const menuScreen = document.querySelector('#menu-screen');
+      const backgroundMusic = document.querySelector('#background-music');
+      function keepMusicPlaying() {
+        if (backgroundMusic.paused) backgroundMusic.play().catch(() => {});
+      }
       const difficulty = () => 1.5 + elapsed * .025;
       const oceanDifficulty = () => 1.5 + oceanElapsed * .025;
       function oceanViewport() {
@@ -114,6 +119,7 @@
         return { x: (w - width) / 2, y: (h - height) / 2, width, height };
       }
       document.body.classList.add('in-menu');
+      keepMusicPlaying();
 
       function addScore(points) {
         score += points;
@@ -129,6 +135,7 @@
       }
 
       function restart() {
+        keepMusicPlaying();
         mode = 'game'; menuScreen.hidden = true; document.body.classList.remove('in-menu', 'in-ocean');
         ended = false; portalEntry = null;
         columnTestMode = false;
