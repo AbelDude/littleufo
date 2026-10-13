@@ -17,7 +17,7 @@
     }
     main { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: #172b3b; }
     canvas { display: block; width: 100%; height: 100%; }
-    .in-menu .hud, .in-menu .score, .in-menu .hint,
+    .in-menu .hud, .in-menu .score, .in-menu .high-score, .in-menu .hint,
     .in-ocean .hud, .in-ocean .hint { display: none; }
     .menu-screen { position: absolute; inset: 0; pointer-events: none; }
     .menu-screen[hidden] { display: none; }
@@ -39,6 +39,11 @@
     .score {
       position: absolute; top: clamp(20px, 5vh, 48px); right: clamp(20px, 5vw, 64px);
       color: #fff4d2; font-size: clamp(13px, 2vw, 18px); letter-spacing: .12em;
+      text-shadow: 0 2px 8px #10202b; font-variant-numeric: tabular-nums; pointer-events: none;
+    }
+    .high-score {
+      position: absolute; top: calc(clamp(20px, 5vh, 48px) + 30px); right: clamp(20px, 5vw, 64px);
+      color: #d1dfd9; font-size: clamp(10px, 1.5vw, 13px); letter-spacing: .1em;
       text-shadow: 0 2px 8px #10202b; font-variant-numeric: tabular-nums; pointer-events: none;
     }
     .hint {
@@ -66,6 +71,7 @@
     <audio id="collision-sound" src="assets/helicopter-jet-collision.mp3" preload="auto" aria-hidden="true"></audio>
     <canvas id="game" aria-label="Use the up and down arrow keys to fly the spaceship"></canvas>
     <div class="score" id="score" aria-live="polite">SCORE 00000</div>
+    <div class="high-score" id="high-score" aria-live="polite">HIGH SCORE 00000</div>
     <div class="hint"><span>Fly</span><span class="keys"><span class="key">↑</span><span class="key">↓</span></span></div>
     <section class="menu-screen" id="menu-screen" aria-label="Main menu">
       <div class="menu-card"><div class="menu-actions">
@@ -103,6 +109,11 @@
       const gameOver = document.querySelector('#game-over');
       const gameOverMessage = document.querySelector('#game-over-message');
       const scoreDisplay = document.querySelector('#score');
+      const highScoreDisplay = document.querySelector('#high-score');
+      const highScoreKey = 'ufoing-high-score-v1';
+      let highScore = 0;
+      try { highScore = Number(localStorage.getItem(highScoreKey)) || 0; } catch {}
+      highScoreDisplay.textContent = `HIGH SCORE ${String(highScore).padStart(5, '0')}`;
       const menuScreen = document.querySelector('#menu-screen');
       const backgroundMusic = document.querySelector('#background-music');
       const collisionSound = document.querySelector('#collision-sound');
@@ -130,6 +141,11 @@
       function addScore(points) {
         score += points;
         scoreDisplay.textContent = `SCORE ${String(score).padStart(5, '0')}`;
+        if (score > highScore) {
+          highScore = score;
+          highScoreDisplay.textContent = `HIGH SCORE ${String(highScore).padStart(5, '0')}`;
+          try { localStorage.setItem(highScoreKey, String(highScore)); } catch {}
+        }
       }
 
       function endGame() {
