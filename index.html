@@ -327,7 +327,8 @@
               angle: (Math.random() * 2 - 1) * Math.PI / 6,
               trackRate: .42 + Math.random() * .68,
               turnRate: 1.8 + Math.random() * 1.4,
-              trackingStarted: false
+              trackingStarted: false,
+              trackRemaining: 0
             });
           }
           nextJet = oceanElapsed + Math.max(.32, (2.5 + Math.random() * 2.2) / level);
@@ -336,16 +337,21 @@
         for (const jet of jets) {
           if (!ended) {
             const speed = jet.speed * level;
-            let straightBefore = dt, trackingTime = 0;
-            const trackingLine = viewHeight * .42;
+            let straightBefore = dt, trackingTime = 0, straightAfter = 0;
+            const trackingLine = viewHeight * .48;
             const verticalSpeed = Math.cos(jet.angle) * speed;
             if (!jet.trackingStarted && jet.y + verticalSpeed * dt >= trackingLine) {
               straightBefore = Math.max(0, (trackingLine - jet.y) / verticalSpeed);
-              trackingTime = dt - straightBefore;
+              trackingTime = Math.min(dt - straightBefore, .8);
+              straightAfter = dt - straightBefore - trackingTime;
               jet.trackingStarted = true;
-            } else if (jet.trackingStarted) {
+              jet.trackRemaining = .8;
+            } else if (jet.trackingStarted && jet.trackRemaining > 0) {
               straightBefore = 0;
-              trackingTime = dt;
+              trackingTime = Math.min(dt, jet.trackRemaining);
+              straightAfter = dt - trackingTime;
+            } else if (jet.trackingStarted) {
+              straightBefore = dt;
             }
 
             jet.x -= Math.sin(jet.angle) * speed * straightBefore;
@@ -359,7 +365,10 @@
               const angleDifference = (targetAngle - jet.angle + Math.PI * 3) % (Math.PI * 2) - Math.PI;
               jet.angle += angleDifference * (1 - Math.exp(-jet.turnRate * trackingTime));
               jet.y = trackedY;
+              jet.trackRemaining = Math.max(0, jet.trackRemaining - trackingTime);
             }
+            jet.x -= Math.sin(jet.angle) * speed * straightAfter;
+            jet.y += Math.cos(jet.angle) * speed * straightAfter;
           }
         }
 
