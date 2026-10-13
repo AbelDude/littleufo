@@ -372,6 +372,11 @@
           }
         }
 
+        for (let i = jets.length - 1; i >= 0; i--) {
+          const jet = jets[i];
+          if (jet.y > viewHeight + 32 || jet.x < -32 || jet.x > viewWidth + 32) jets.splice(i, 1);
+        }
+
         const crashed = new Set();
         let crashEvents = 0;
         for (let i = 0; i < jets.length; i++) {
@@ -397,7 +402,6 @@
           if (!ended && Math.abs(jet.x - oceanShipX) < 42 && Math.abs(jet.y - oceanShipY) < 49) {
             endGame();
           }
-          if (jet.y > viewHeight + 50 || jet.x < -50 || jet.x > viewWidth + 50) jets.splice(i, 1);
         }
         drawExplosions(dt, 0, 162);
       }
