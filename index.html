@@ -302,61 +302,33 @@
         ctx.restore();
       }
 
-      function spawnJetSquadron() {
-        const count = Math.random() < .5 ? 2 : 3;
-        const spacing = Math.min(76, Math.max(54, (w - 80) / (count - 1)));
-        const formation = count === 3
-          ? [{ x: 0, y: 0 }, { x: -spacing, y: -42 }, { x: spacing, y: -42 }]
-          : [{ x: -spacing * .5, y: -22 }, { x: spacing * .5, y: 0 }];
-        const halfWidth = spacing * (count - 1) / 2;
-        const minCenter = Math.min(w * .5, 40 + halfWidth);
-        const maxCenter = Math.max(w * .5, w - 40 - halfWidth);
-
-        for (let attempt = 0; attempt < 24; attempt++) {
-          const centerX = minCenter + Math.random() * (maxCenter - minCenter);
-          const spawnY = -40;
-          const positions = formation.map(slot => ({ x: centerX + slot.x, y: spawnY + slot.y }));
-          const overlapsJet = positions.some(position => jets.some(jet =>
-            Math.abs(jet.x - position.x) < 54 && Math.abs(jet.y - position.y) < 48
-          ));
-          if (overlapsJet) continue;
-
-          for (let i = 0; i < positions.length; i++) {
-            const position = positions[i];
-            jets.push({
-              x: position.x, y: position.y,
-              speed: 95 + Math.random() * 125,
-              trackRate: .42 + Math.random() * .68,
-              turnRate: 1.8 + Math.random() * 1.4,
-              approachSide: i % 2 === 0 ? 1 : -1,
-              approachOffset: 76 + Math.random() * 12,
-              angle: 0
-            });
-          }
-          return;
-        }
-      }
-
       function drawOceanJets(dt) {
         const level = oceanDifficulty();
         if (!ended && oceanElapsed >= nextJet) {
-          spawnJetSquadron();
+          const spawnY = -40;
+          let spawnX = null;
+          for (let attempt = 0; attempt < 24; attempt++) {
+            const candidateX = 40 + Math.random() * Math.max(1, w - 80);
+            const wouldTouch = jets.some(jet =>
+              Math.abs(jet.x - candidateX) < 54 && Math.abs(jet.y - spawnY) < 48
+            );
+            if (!wouldTouch) { spawnX = candidateX; break; }
+          }
+          if (spawnX !== null) {
+            jets.push({
+              x: spawnX, y: spawnY,
+              speed: 95 + Math.random() * 125,
+              angle: (Math.random() * 2 - 1) * Math.PI / 6
+            });
+          }
           nextJet = oceanElapsed + Math.max(.32, (2.5 + Math.random() * 2.2) / level);
         }
 
         for (const jet of jets) {
           if (!ended) {
-            jet.y += jet.speed * level * dt;
-            if (jet.y >= h * .5) {
-              const tracking = 1 - Math.exp(-jet.trackRate * level * 2 * dt);
-              const targetX = Math.max(40, Math.min(w - 40,
-                oceanShipX + jet.approachSide * jet.approachOffset));
-              const dx = targetX - jet.x;
-              jet.x += dx * tracking;
-              const targetAngle = Math.atan2(-dx, Math.max(40, oceanShipY - jet.y));
-              let angleDifference = (targetAngle - jet.angle + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-              jet.angle += angleDifference * (1 - Math.exp(-jet.turnRate * dt));
-            }
+            const travel = jet.speed * level * dt;
+            jet.x -= Math.sin(jet.angle) * travel;
+            jet.y += Math.cos(jet.angle) * travel;
           }
         }
 
@@ -364,10 +336,8 @@
         let crashEvents = 0;
         for (let i = 0; i < jets.length; i++) {
           const first = jets[i];
-          if (first.y < h * .5) continue;
           for (let j = i + 1; j < jets.length; j++) {
             const second = jets[j];
-            if (second.y < h * .5) continue;
             if (Math.abs(first.x - second.x) < 46 && Math.abs(first.y - second.y) < 44) {
               crashed.add(first); crashed.add(second); crashEvents++;
               explosions.push({ x: (first.x + second.x) / 2, y: (first.y + second.y) / 2, age: 0 });
@@ -375,7 +345,7 @@
           }
         }
         if (crashed.size) {
-          addScore(crashEvents * 2);
+          addScore(crashEvents * 3);
           for (let i = jets.length - 1; i >= 0; i--) {
             if (crashed.has(jets[i])) jets.splice(i, 1);
           }
@@ -387,7 +357,7 @@
           if (!ended && Math.abs(jet.x - oceanShipX) < 42 && Math.abs(jet.y - oceanShipY) < 49) {
             endGame();
           }
-          if (jet.y > h + 50) jets.splice(i, 1);
+          if (jet.y > h + 50 || jet.x < -50 || jet.x > w + 50) jets.splice(i, 1);
         }
         drawExplosions(dt, 0, 162);
       }
@@ -614,7 +584,7 @@
           }
         }
         if (crashed.size) {
-          addScore(crashEvents * 3);
+          addScore(crashEvents * 2);
           for (const heli of crashed) spawnCrashDebris(heli);
           for (let i = helicopters.length - 1; i >= 0; i--) {
             if (crashed.has(helicopters[i])) helicopters.splice(i, 1);
