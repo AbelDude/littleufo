@@ -30,8 +30,6 @@
     }
     .menu-card button { width: min(240px, 100%); padding: 15px 12px; white-space: nowrap; }
     .menu-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
-    .menu-card .test-button { color: #dce8dc; background: #38515a; }
-    .menu-card .test-button:hover { background: #496a72; }
     .hud {
       position: absolute; top: clamp(18px, 5vh, 48px); left: clamp(20px, 5vw, 64px);
       pointer-events: none; text-shadow: 0 2px 8px #10202b;
@@ -65,13 +63,13 @@
 <body>
   <main aria-label="Spaceship game">
     <audio id="background-music" src="assets/2d-beat-v2-1.m4a" autoplay loop preload="auto" aria-hidden="true"></audio>
+    <audio id="collision-sound" src="assets/helicopter-jet-collision.mp3" preload="auto" aria-hidden="true"></audio>
     <canvas id="game" aria-label="Use the up and down arrow keys to fly the spaceship"></canvas>
     <div class="score" id="score" aria-live="polite">SCORE 00000</div>
     <div class="hint"><span>Fly</span><span class="keys"><span class="key">↑</span><span class="key">↓</span></span></div>
     <section class="menu-screen" id="menu-screen" aria-label="Main menu">
       <div class="menu-card"><div class="menu-actions">
         <button id="start-game" type="button">START UFOING</button>
-        <button id="test-column" class="test-button" type="button">TEST: SKIP TO PRE-COLUMN</button>
       </div></div>
     </section>
     <section class="game-over" id="game-over" hidden aria-live="polite">
@@ -86,7 +84,6 @@
       let shipY = 0, ended = false, mode = 'menu', menuElapsed = 0, nextMenuHelicopter = 0, portalEntry = null;
       let oceanElapsed = 0, oceanReveal = 1;
       let oceanScroll = 0, oceanShipX = 0, oceanShipY = 0;
-      let columnTestMode = false;
       let score = 0, survivalTime = 0;
       const keys = new Set();
       const stars = Array.from({ length: 70 }, (_, i) => ({
@@ -108,6 +105,12 @@
       const scoreDisplay = document.querySelector('#score');
       const menuScreen = document.querySelector('#menu-screen');
       const backgroundMusic = document.querySelector('#background-music');
+      const collisionSound = document.querySelector('#collision-sound');
+      collisionSound.volume = .22;
+      function playCollisionSound() {
+        collisionSound.currentTime = 0;
+        collisionSound.play().catch(() => {});
+      }
       function keepMusicPlaying() {
         if (backgroundMusic.paused) backgroundMusic.play().catch(() => {});
       }
@@ -138,7 +141,6 @@
         keepMusicPlaying();
         mode = 'game'; menuScreen.hidden = true; document.body.classList.remove('in-menu', 'in-ocean');
         ended = false; portalEntry = null;
-        columnTestMode = false;
         elapsed = 0; last = 0; shipY = h * .49;
         score = 0; survivalTime = 0; addScore(0);
         rocks.length = 0; helicopters.length = 0; jets.length = 0; explosions.length = 0; debris.length = 0;
@@ -147,17 +149,6 @@
         wallSpawnTime = null; wormholeSpawned = false; wormhole = null;
         gameOver.hidden = true;
         keys.clear();
-      }
-
-      function startColumnTest() {
-        restart();
-        columnTestMode = true;
-        const contactIn = 7;
-        // Place the wall seven seconds of accelerating game time from the ship.
-        const travel = 155 * (1.5 * contactIn + .0125 * contactIn * contactIn);
-        const shipX = Math.max(82, Math.min(130, w * .12));
-        spawnWall(shipX + 46 + travel);
-        wallSpawned = true; wallSpawnTime = elapsed; wormholeSpawned = false; wormhole = null;
       }
 
       function returnToMenu() {
@@ -174,7 +165,6 @@
       }
       document.querySelector('#restart').addEventListener('click', restart);
       document.querySelector('#start-game').addEventListener('click', restart);
-      document.querySelector('#test-column').addEventListener('click', startColumnTest);
 
       function resize() {
         dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -403,6 +393,7 @@
           }
         }
         if (crashed.size) {
+          if (crashEvents > 0) playCollisionSound();
           addScore(crashEvents * 3);
           for (let i = jets.length - 1; i >= 0; i--) {
             if (crashed.has(jets[i])) jets.splice(i, 1);
@@ -582,7 +573,7 @@
       }
 
       function drawHelicopters(dt) {
-        if (!ended && !columnTestMode && elapsed > nextHelicopter) {
+        if (!ended && elapsed > nextHelicopter) {
           const spawnX = w + 45;
           let spawnY = null, spawnPhase = 0;
           // Try several heights, and skip this spawn if every spot is occupied.
@@ -641,6 +632,7 @@
           }
         }
         if (crashed.size) {
+          if (crashEvents > 0) playCollisionSound();
           addScore(crashEvents * 2);
           for (const heli of crashed) spawnCrashDebris(heli);
           for (let i = helicopters.length - 1; i >= 0; i--) {
@@ -792,6 +784,7 @@
         }
 
         const crashed = new Set();
+        let helicopterCollision = false;
         for (let i = 0; i < helicopters.length; i++) {
           const first = helicopters[i];
           for (let j = i + 1; j < helicopters.length; j++) {
@@ -800,6 +793,7 @@
             const firstToShip = Math.hypot(first.x - shipX, first.drawY - shipMenuY);
             const secondToShip = Math.hypot(second.x - shipX, second.drawY - shipMenuY);
             if (separation < 48 && firstToShip > 94 && secondToShip > 94) {
+              helicopterCollision = true;
               crashed.add(first); crashed.add(second);
               explosions.push({ x: (first.x + second.x) / 2, y: (first.drawY + second.drawY) / 2, age: 0 });
             }
@@ -812,6 +806,7 @@
           }
         }
         if (crashed.size) {
+          if (helicopterCollision) playCollisionSound();
           for (const heli of crashed) spawnCrashDebris(heli);
           for (let i = helicopters.length - 1; i >= 0; i--) {
             if (crashed.has(helicopters[i])) helicopters.splice(i, 1);
