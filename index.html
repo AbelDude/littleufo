@@ -121,7 +121,8 @@
 
       function endGame() {
         ended = true;
-        gameOverMessage.textContent = `You are now property of Area 51 — Final score: ${score}`;
+        const owner = mode === 'ocean' ? 'You are now property of the U.S. Navy' : 'You are now property of Area 51';
+        gameOverMessage.textContent = `${owner} — Final score: ${score}`;
         gameOver.hidden = false;
         keys.clear();
       }
@@ -303,18 +304,11 @@
       }
 
       function spawnJetSquadron() {
-        const count = Math.random() < .5 ? 3 : 5;
+        const count = Math.random() < .5 ? 2 : 3;
         const spacing = Math.min(76, Math.max(54, (w - 80) / (count - 1)));
-        const formation = count === 5
-          ? [
-              { x: 0, y: 0 },
-              { x: -spacing, y: -34 }, { x: spacing, y: -34 },
-              { x: -spacing * 2, y: -68 }, { x: spacing * 2, y: -68 }
-            ]
-          : [
-              { x: 0, y: 0 },
-              { x: -spacing, y: -42 }, { x: spacing, y: -42 }
-            ];
+        const formation = count === 3
+          ? [{ x: 0, y: 0 }, { x: -spacing, y: -42 }, { x: spacing, y: -42 }]
+          : [{ x: -spacing * .5, y: -22 }, { x: spacing * .5, y: 0 }];
         const halfWidth = spacing * (count - 1) / 2;
         const minCenter = Math.min(w * .5, 40 + halfWidth);
         const maxCenter = Math.max(w * .5, w - 40 - halfWidth);
