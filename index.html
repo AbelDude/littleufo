@@ -313,18 +313,27 @@
         if (!ended && oceanElapsed >= nextJet) {
           const spawnY = -40;
           let spawnX = null;
+          let spawnAngle = 0;
           for (let attempt = 0; attempt < 24; attempt++) {
             const candidateX = 28 + Math.random() * Math.max(1, viewWidth - 56);
+            const candidateAngle = (Math.random() * 2 - 1) * Math.PI / 6;
+            const trackingLine = viewHeight * .40;
+            const projectedX = candidateX - Math.tan(candidateAngle) * (trackingLine - spawnY);
+            const staysOnCanvas = projectedX >= 24 && projectedX <= viewWidth - 24;
             const wouldTouch = jets.some(jet =>
               Math.abs(jet.x - candidateX) < 54 && Math.abs(jet.y - spawnY) < 48
             );
-            if (!wouldTouch) { spawnX = candidateX; break; }
+            if (staysOnCanvas && !wouldTouch) {
+              spawnX = candidateX;
+              spawnAngle = candidateAngle;
+              break;
+            }
           }
           if (spawnX !== null) {
             jets.push({
               x: spawnX, y: spawnY,
               speed: (95 + Math.random() * 125) * (1.5 + Math.random() * .5),
-              angle: (Math.random() * 2 - 1) * Math.PI / 6,
+              angle: spawnAngle,
               trackRate: .42 + Math.random() * .68,
               turnRate: 1.8 + Math.random() * 1.4,
               trackingStarted: false,
