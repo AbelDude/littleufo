@@ -308,7 +308,9 @@
           const spawnY = -40;
           let spawnX = null;
           for (let attempt = 0; attempt < 24; attempt++) {
-            const candidateX = 40 + Math.random() * Math.max(1, w - 80);
+            const columnWidth = w / 15;
+            const column = 1 + Math.floor(Math.random() * 13);
+            const candidateX = (column + Math.random()) * columnWidth;
             const wouldTouch = jets.some(jet =>
               Math.abs(jet.x - candidateX) < 54 && Math.abs(jet.y - spawnY) < 48
             );
@@ -318,7 +320,9 @@
             jets.push({
               x: spawnX, y: spawnY,
               speed: 95 + Math.random() * 125,
-              angle: (Math.random() * 2 - 1) * Math.PI / 6
+              angle: (Math.random() * 2 - 1) * Math.PI / 6,
+              trackRate: .42 + Math.random() * .68,
+              turnRate: 1.8 + Math.random() * 1.4
             });
           }
           nextJet = oceanElapsed + Math.max(.32, (2.5 + Math.random() * 2.2) / level);
@@ -327,8 +331,18 @@
         for (const jet of jets) {
           if (!ended) {
             const travel = jet.speed * level * dt;
-            jet.x -= Math.sin(jet.angle) * travel;
-            jet.y += Math.cos(jet.angle) * travel;
+            const nextX = jet.x - Math.sin(jet.angle) * travel;
+            const nextY = jet.y + Math.cos(jet.angle) * travel;
+            if (nextY >= h * .58) {
+              const tracking = (1 - Math.exp(-jet.trackRate * level * dt)) * .9;
+              jet.x = nextX + (oceanShipX - nextX) * tracking;
+              const targetAngle = Math.atan2(-(oceanShipX - jet.x), Math.max(40, oceanShipY - nextY));
+              const angleDifference = (targetAngle - jet.angle + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+              jet.angle += angleDifference * (1 - Math.exp(-jet.turnRate * .9 * dt));
+            } else {
+              jet.x = nextX;
+            }
+            jet.y = nextY;
           }
         }
 
