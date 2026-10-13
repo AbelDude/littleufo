@@ -112,6 +112,11 @@
       const menuScreen = document.querySelector('#menu-screen');
       const difficulty = () => 1.5 + elapsed * .025;
       const oceanDifficulty = () => 1.5 + oceanElapsed * .025;
+      function oceanViewport() {
+        const width = Math.min(w, h * .75);
+        const height = width * 4 / 3;
+        return { x: (w - width) / 2, y: (h - height) / 2, width, height };
+      }
       document.body.classList.add('in-menu');
 
       function addScore(points) {
@@ -179,8 +184,9 @@
           wormhole.x = Math.max(wormhole.rx, Math.min(w - wormhole.rx, wormhole.x));
           wormhole.y = wormhole.zone === 'ground' ? groundY - 12 : wormhole.ry + 8;
         }
-        oceanShipX = Math.max(32, Math.min(w - 32, oceanShipX || w * .5));
-        oceanShipY = h * .76;
+        const ocean = oceanViewport();
+        oceanShipX = Math.max(32, Math.min(ocean.width - 32, oceanShipX || ocean.width * .5));
+        oceanShipY = ocean.height * .76;
       }
       window.addEventListener('resize', resize);
       resize();
@@ -214,25 +220,25 @@
         ctx.lineTo(w, groundY); ctx.closePath(); ctx.fill();
       }
 
-      function drawOcean(dt) {
+      function drawOcean(dt, viewWidth, viewHeight) {
         oceanElapsed += dt;
         oceanScroll += 162 * (oceanDifficulty() / 1.5) * dt;
-        const water = ctx.createLinearGradient(0, 0, w * .18, h);
+        const water = ctx.createLinearGradient(0, 0, viewWidth * .18, viewHeight);
         water.addColorStop(0, '#173e55'); water.addColorStop(.48, '#24647a'); water.addColorStop(1, '#102f49');
-        ctx.fillStyle = water; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = water; ctx.fillRect(0, 0, viewWidth, viewHeight);
 
         // Gentle diagonal wave bands travel toward the upper-right.
         const spacing = 94;
         const drift = oceanElapsed * 66;
-        const firstLane = Math.floor((-h - drift + oceanScroll) / spacing);
+        const firstLane = Math.floor((-viewHeight - drift + oceanScroll) / spacing);
         ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         const waveColors = ['#398196', '#4a91a0', '#67a6ad', '#2e718b'];
         const waveWidths = [6, 9, 5, 8];
-        for (let lane = firstLane; lane * spacing + drift < w + oceanScroll; lane++) {
+        for (let lane = firstLane; lane * spacing + drift < viewWidth + oceanScroll; lane++) {
           const crest = lane * spacing + drift;
           // For x - y = crest, keep only the segment inside the canvas.
           const startX = Math.max(0, crest - oceanScroll);
-          const endX = Math.min(w, crest + h - oceanScroll);
+          const endX = Math.min(viewWidth, crest + viewHeight - oceanScroll);
           if (endX <= startX) continue;
           const points = [];
           const wavePhase = crest * .035 - oceanElapsed * 1.4;
@@ -302,15 +308,13 @@
         ctx.restore();
       }
 
-      function drawOceanJets(dt) {
+      function drawOceanJets(dt, viewWidth, viewHeight) {
         const level = oceanDifficulty();
         if (!ended && oceanElapsed >= nextJet) {
           const spawnY = -40;
           let spawnX = null;
           for (let attempt = 0; attempt < 24; attempt++) {
-            const columnWidth = w / 15;
-            const column = 1 + Math.floor(Math.random() * 13);
-            const candidateX = (column + Math.random()) * columnWidth;
+            const candidateX = 28 + Math.random() * Math.max(1, viewWidth - 56);
             const wouldTouch = jets.some(jet =>
               Math.abs(jet.x - candidateX) < 54 && Math.abs(jet.y - spawnY) < 48
             );
@@ -334,7 +338,7 @@
           if (!ended) {
             const speed = jet.speed * level;
             let straightBefore = dt, trackingTime = 0, straightAfter = 0;
-            const trackingLine = h * .42;
+            const trackingLine = viewHeight * .42;
             const verticalSpeed = Math.cos(jet.angle) * speed;
             if (!jet.trackingStarted && jet.y + verticalSpeed * dt >= trackingLine) {
               straightBefore = Math.max(0, (trackingLine - jet.y) / verticalSpeed);
@@ -390,7 +394,7 @@
           if (!ended && Math.abs(jet.x - oceanShipX) < 42 && Math.abs(jet.y - oceanShipY) < 49) {
             endGame();
           }
-          if (jet.y > h + 50 || jet.x < -50 || jet.x > w + 50) jets.splice(i, 1);
+          if (jet.y > viewHeight + 50 || jet.x < -50 || jet.x > viewWidth + 50) jets.splice(i, 1);
         }
         drawExplosions(dt, 0, 162);
       }
@@ -806,22 +810,29 @@
         const frameDt = Math.min((now - (last || now)) / 1000, .04); last = now;
         const dt = ended || portalEntry ? 0 : frameDt;
         if (mode === 'ocean') {
+          const ocean = oceanViewport();
           const oceanDt = ended ? 0 : frameDt;
           const shipSpeed = 285 * oceanDt;
           if (!ended && keys.has('ArrowLeft')) oceanShipX -= shipSpeed;
           if (!ended && keys.has('ArrowRight')) oceanShipX += shipSpeed;
-          oceanShipX = Math.max(32, Math.min(w - 32, oceanShipX));
+          oceanShipX = Math.max(32, Math.min(ocean.width - 32, oceanShipX));
           if (!ended) {
             survivalTime += oceanDt;
             while (survivalTime >= 2) { survivalTime -= 2; addScore(1); }
           }
-          drawOcean(oceanDt);
-          drawOceanJets(oceanDt);
+          ctx.fillStyle = '#101820'; ctx.fillRect(0, 0, w, h);
+          ctx.save();
+          ctx.beginPath(); ctx.rect(ocean.x, ocean.y, ocean.width, ocean.height); ctx.clip();
+          ctx.translate(ocean.x, ocean.y);
+          drawOcean(oceanDt, ocean.width, ocean.height);
+          drawOceanJets(oceanDt, ocean.width, ocean.height);
           drawOceanShip();
           oceanReveal = Math.min(1, oceanReveal + oceanDt / .9);
           if (oceanReveal < 1) {
-            ctx.fillStyle = '#fff'; ctx.globalAlpha = 1 - oceanReveal; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
+            ctx.fillStyle = '#fff'; ctx.globalAlpha = 1 - oceanReveal;
+            ctx.fillRect(0, 0, ocean.width, ocean.height); ctx.globalAlpha = 1;
           }
+          ctx.restore();
           requestAnimationFrame(frame);
           return;
         }
@@ -855,7 +866,8 @@
           }
           if (portalEntry.age >= portalEntry.duration) {
             mode = 'ocean'; portalEntry = null; oceanElapsed = 0; oceanScroll = 0;
-            oceanShipX = w * .5; oceanShipY = h * .76; oceanReveal = 0; nextJet = 1.5;
+            const ocean = oceanViewport();
+            oceanShipX = ocean.width * .5; oceanShipY = ocean.height * .76; oceanReveal = 0; nextJet = 1.5;
             jets.length = 0; explosions.length = 0; debris.length = 0; keys.clear();
             document.body.classList.add('in-ocean');
           }
