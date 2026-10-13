@@ -222,7 +222,7 @@
 
       function drawOcean(dt, viewWidth, viewHeight) {
         oceanElapsed += dt;
-        oceanScroll += 162 * (oceanDifficulty() / 1.5) * dt;
+        oceanScroll += 162 * 2.7 * (oceanDifficulty() / 1.5) * dt;
         const water = ctx.createLinearGradient(0, 0, viewWidth * .18, viewHeight);
         water.addColorStop(0, '#173e55'); water.addColorStop(.48, '#24647a'); water.addColorStop(1, '#102f49');
         ctx.fillStyle = water; ctx.fillRect(0, 0, viewWidth, viewHeight);
@@ -327,8 +327,7 @@
               angle: (Math.random() * 2 - 1) * Math.PI / 6,
               trackRate: .42 + Math.random() * .68,
               turnRate: 1.8 + Math.random() * 1.4,
-              trackingStarted: false,
-              trackRemaining: 0
+              trackingStarted: false
             });
           }
           nextJet = oceanElapsed + Math.max(.32, (2.5 + Math.random() * 2.2) / level);
@@ -337,18 +336,16 @@
         for (const jet of jets) {
           if (!ended) {
             const speed = jet.speed * level;
-            let straightBefore = dt, trackingTime = 0, straightAfter = 0;
+            let straightBefore = dt, trackingTime = 0;
             const trackingLine = viewHeight * .42;
             const verticalSpeed = Math.cos(jet.angle) * speed;
             if (!jet.trackingStarted && jet.y + verticalSpeed * dt >= trackingLine) {
               straightBefore = Math.max(0, (trackingLine - jet.y) / verticalSpeed);
               trackingTime = dt - straightBefore;
               jet.trackingStarted = true;
-              jet.trackRemaining = .5;
-            } else if (jet.trackingStarted && jet.trackRemaining > 0) {
+            } else if (jet.trackingStarted) {
               straightBefore = 0;
-              trackingTime = Math.min(dt, jet.trackRemaining);
-              straightAfter = dt - trackingTime;
+              trackingTime = dt;
             }
 
             jet.x -= Math.sin(jet.angle) * speed * straightBefore;
@@ -362,10 +359,7 @@
               const angleDifference = (targetAngle - jet.angle + Math.PI * 3) % (Math.PI * 2) - Math.PI;
               jet.angle += angleDifference * (1 - Math.exp(-jet.turnRate * trackingTime));
               jet.y = trackedY;
-              jet.trackRemaining = Math.max(0, jet.trackRemaining - trackingTime);
             }
-            jet.x -= Math.sin(jet.angle) * speed * straightAfter;
-            jet.y += Math.cos(jet.angle) * speed * straightAfter;
           }
         }
 
@@ -812,7 +806,7 @@
         if (mode === 'ocean') {
           const ocean = oceanViewport();
           const oceanDt = ended ? 0 : frameDt;
-          const shipSpeed = 285 * oceanDt;
+          const shipSpeed = 356.25 * oceanDt;
           if (!ended && keys.has('ArrowLeft')) oceanShipX -= shipSpeed;
           if (!ended && keys.has('ArrowRight')) oceanShipX += shipSpeed;
           oceanShipX = Math.max(32, Math.min(ocean.width - 32, oceanShipX));
