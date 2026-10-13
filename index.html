@@ -322,7 +322,9 @@
               speed: 95 + Math.random() * 125,
               angle: (Math.random() * 2 - 1) * Math.PI / 6,
               trackRate: .42 + Math.random() * .68,
-              turnRate: 1.8 + Math.random() * 1.4
+              turnRate: 1.8 + Math.random() * 1.4,
+              trackingStarted: false,
+              trackRemaining: 0
             });
           }
           nextJet = oceanElapsed + Math.max(.32, (2.5 + Math.random() * 2.2) / level);
@@ -330,19 +332,36 @@
 
         for (const jet of jets) {
           if (!ended) {
-            const travel = jet.speed * level * dt;
-            const nextX = jet.x - Math.sin(jet.angle) * travel;
-            const nextY = jet.y + Math.cos(jet.angle) * travel;
-            if (nextY >= h * .58) {
-              const tracking = (1 - Math.exp(-jet.trackRate * level * dt)) * .9;
-              jet.x = nextX + (oceanShipX - nextX) * tracking;
-              const targetAngle = Math.atan2(-(oceanShipX - jet.x), Math.max(40, oceanShipY - nextY));
-              const angleDifference = (targetAngle - jet.angle + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-              jet.angle += angleDifference * (1 - Math.exp(-jet.turnRate * .9 * dt));
-            } else {
-              jet.x = nextX;
+            const speed = jet.speed * level;
+            let straightBefore = dt, trackingTime = 0, straightAfter = 0;
+            const trackingLine = h * .42;
+            const verticalSpeed = Math.cos(jet.angle) * speed;
+            if (!jet.trackingStarted && jet.y + verticalSpeed * dt >= trackingLine) {
+              straightBefore = Math.max(0, (trackingLine - jet.y) / verticalSpeed);
+              trackingTime = dt - straightBefore;
+              jet.trackingStarted = true;
+              jet.trackRemaining = .5;
+            } else if (jet.trackingStarted && jet.trackRemaining > 0) {
+              straightBefore = 0;
+              trackingTime = Math.min(dt, jet.trackRemaining);
+              straightAfter = dt - trackingTime;
             }
-            jet.y = nextY;
+
+            jet.x -= Math.sin(jet.angle) * speed * straightBefore;
+            jet.y += Math.cos(jet.angle) * speed * straightBefore;
+            if (trackingTime > 0) {
+              const trackedX = jet.x - Math.sin(jet.angle) * speed * trackingTime;
+              const trackedY = jet.y + Math.cos(jet.angle) * speed * trackingTime;
+              const tracking = 1 - Math.exp(-jet.trackRate * level * trackingTime);
+              jet.x = trackedX + (oceanShipX - trackedX) * tracking;
+              const targetAngle = Math.atan2(-(oceanShipX - jet.x), Math.max(40, oceanShipY - trackedY));
+              const angleDifference = (targetAngle - jet.angle + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+              jet.angle += angleDifference * (1 - Math.exp(-jet.turnRate * trackingTime));
+              jet.y = trackedY;
+              jet.trackRemaining = Math.max(0, jet.trackRemaining - trackingTime);
+            }
+            jet.x -= Math.sin(jet.angle) * speed * straightAfter;
+            jet.y += Math.cos(jet.angle) * speed * straightAfter;
           }
         }
 
